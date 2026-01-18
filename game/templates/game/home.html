@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlitzTacToe</title>
+    <style>
+        .hidden { display: none !important; }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+        }
+        
+        .title {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .title h1 {
+            font-size: 3rem;
+            margin: 0;
+            font-weight: 200;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+
+        .title p {
+            color: #666;
+        }
+        
+        .sections {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            border: 1px solid #333;
+            padding: 20px;
+            min-width: 300px;
+            background: #0a0a0a;
+        }
+        
+        .section h2 {
+            margin-top: 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: #fff;
+            color: #000;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #ccc;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        .room-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #333;
+            margin: 5px 0;
+            background: #111;
+        }
+        
+        .room-code {
+            font-family: monospace;
+            font-size: 1.2rem;
+        }
+        
+        .no-rooms {
+            color: #888;
+            font-style: italic;
+        }
+        
+        .created-room {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #333;
+            background: #111;
+        }
+        
+        .created-room .code {
+            font-family: monospace;
+            font-size: 2rem;
+            letter-spacing: 3px;
+        }
+
+        @keyframes pulse {
+            0%, 100% {opacity: 1;}
+            50% {opacity: 0.5;}
+        }
+
+        .created-room .code {
+            font-family: monospace;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            animation: pulse 2s infinite;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="title">
+        <h1>BlitzTacToe</h1>
+        <p>it's like tictactoe, ok? difference is its like really fast, ok? so move fast ok? ok???</p>
+    </div>
+    
+    <div class="sections">
+        <div class="section">
+            <h2>create room</h2>
+            <p>start a new game and invite someone to play!!!</p>
+            <button id="create-btn">Create Room</button>
+            
+            <div id="created-room" class="created-room hidden">
+                <p>your room code:</p>
+                <div class="code" id="room-code"></div>
+                <p>waiting for opponent...</p>
+                <button id="copy-btn">Copy Code</button>
+                <button id="cancel-btn">Cancel</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>join room</h2>
+            <p>active rooms waiting for players:</p>
+            <ul class="room-list" id="room-list">
+                <li class="no-rooms">Loading...</li>
+            </ul>
+            <button id="refresh-btn">Refresh</button>
+        </div>
+    </div>
+
+    <script>
+        const roomListEl = document.getElementById("room-list");
+        const createdRoomEl = document.getElementById("created-room");
+        const roomCodeEl = document.getElementById("room-code");
+        
+        let socket = null;
+        let currentRoomCode = null;
+        let refreshInterval = null;
+
+        document.getElementById("create-btn").addEventListener("click", createRoom);
+        document.getElementById("copy-btn").addEventListener("click", copyCode);
+        document.getElementById("cancel-btn").addEventListener("click", cancelRoom);
+        document.getElementById("refresh-btn").addEventListener("click", fetchRooms);
+
+        function generateRoomCode() {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let code = "";
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function createRoom() {
+            currentRoomCode = generateRoomCode();
+            roomCodeEl.textContent = currentRoomCode;
+            createdRoomEl.classList.remove("hidden");
+            document.getElementById("create-btn").disabled = true;
+            
+            connectToRoom(currentRoomCode);
+        }
+
+        function cancelRoom() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            currentRoomCode = null;
+            createdRoomEl.classList.add("hidden");
+            document.getElementById("create-btn").disabled = false;
+        }
+
+        function connectToRoom(roomCode) {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws/game/${roomCode}/`;
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "init" && data.game_started) {
+                    goToGame(roomCode);
+                }
+                if (data.type === "game_start") {
+                    goToGame(roomCode);
+                }
+            };
+            
+            socket.onclose = () => {
+                if (currentRoomCode === roomCode) {
+                    // unexpected close
+                }
+            };
+        }
+
+        function joinRoom(roomCode) {
+            window.location.href = `/game/${roomCode}/`;
+        }
+
+        function goToGame(roomCode) {
+            window.location.href = `/game/${roomCode}/`;
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(currentRoomCode).then(() => {
+                const btn = document.getElementById("copy-btn");
+                btn.textContent = "Copied!";
+                setTimeout(() => btn.textContent = "Copy Code", 2000);
+            });
+        }
+
+        async function fetchRooms() {
+            try {
+                const response = await fetch("/api/rooms/");
+                const rooms = await response.json();
+                renderRooms(rooms);
+            } catch (e) {
+                roomListEl.innerHTML = '<li class="no-rooms">Failed to load rooms</li>';
+            }
+        }
+
+        function renderRooms(rooms) {
+            if (rooms.length === 0) {
+                roomListEl.innerHTML = '<li class="no-rooms">No active rooms. Create one!</li>';
+                return;
+            }
+            
+            roomListEl.innerHTML = rooms.map(room => `
+                <li class="room-item">
+                    <span class="room-code">${room.code}</span>
+                    <span>${room.players}/2 players</span>
+                    <button onclick="joinRoom('${room.code}')">Join</button>
+                </li>
+            `).join("");
+        }
+
+        fetchRooms();
+        refreshInterval = setInterval(fetchRooms, 3000);
+    </script>
+</body>
+</html>
