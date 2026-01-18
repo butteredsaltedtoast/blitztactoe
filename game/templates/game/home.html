@@ -312,6 +312,18 @@
             }
         });
 
+    fetch("/api/views/")
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("view-count").textContent = `views: ${data.views}`;
+    });
+
     </script>
+
+    <footer style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; color: #444; font-size: 0.8rem;">
+    <div>made by <a href="https://github.com/Karmaticow" style="color: #ffbb00; text-decoration: none;">.butteredtoast</a></div>
+    <div id="view-count" style="margin-top: 5px;">views: --</div>
+    </footer>
+
 </body>
 </html>
