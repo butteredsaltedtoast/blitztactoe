@@ -14,7 +14,7 @@ def game(request, room_id):
 def list_rooms(request):
     rooms = []
     for code, game in GAMES.items():
-        if len(game["players"]) < 2 and not game.get("winner"):
+        if len(game["players"]) < 2 and not game.get("winner") and not game.get("private"):
             rooms.append({
                 "code": code,
                 "players": len(game["players"]),

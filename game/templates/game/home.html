@@ -140,14 +140,26 @@
         <div class="section">
             <h2>create room</h2>
             <p>start a new game and invite someone to play!!!</p>
-            <button id="create-btn">Create Room</button>
+            <button id="create-btn">create room</button>
+
+            <div id = "room-options" style = "margin-top: 15px;">
+                <label>
+                    <input type="radio" name="room-type" value="public" checked> public
+                </label>
+
+                <br>
+
+                <label>
+                    <input type="radio" name="room-type" value="private"> private
+                </label>
+            </div>
             
             <div id="created-room" class="created-room hidden">
                 <p>your room code:</p>
                 <div class="code" id="room-code"></div>
                 <p>waiting for opponent...</p>
-                <button id="copy-btn">Copy Code</button>
-                <button id="cancel-btn">Cancel</button>
+                <button id="copy-btn">copy code</button>
+                <button id="cancel-btn">cancel</button>
             </div>
         </div>
         
@@ -155,10 +167,15 @@
             <h2>join room</h2>
             <p>active rooms waiting for players:</p>
             <ul class="room-list" id="room-list">
-                <li class="no-rooms">Loading...</li>
+                <li class="no-rooms">loading...</li>
             </ul>
-            <button id="refresh-btn">Refresh</button>
-        </div>
+            <button id="refresh-btn">refresh</button>
+
+            <div style = "margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+                <p>or enter a code: </p>
+                <input type="text" id="code-input" maxlength = "6" placeholder = "code" style = "padding: 8px; text-transform: uppercase; font-family: monospace;">
+                <button id = "join-code-btn">join room</button>
+            </div>
     </div>
 
     <script>
@@ -174,6 +191,10 @@
         document.getElementById("copy-btn").addEventListener("click", copyCode);
         document.getElementById("cancel-btn").addEventListener("click", cancelRoom);
         document.getElementById("refresh-btn").addEventListener("click", fetchRooms);
+        document.getElementById("join-code-btn").addEventListener("click", joinWithCode);
+        document.getElementById("code-input").addEventListener("keyup", (e) => {
+        if (e.key === "Enter") joinWithCode();
+        });
 
         function generateRoomCode() {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -185,12 +206,15 @@
         }
 
         function createRoom() {
+
+            const isPrivate = document.querySelector('input[name="room-type"]:checked').value === "private";
+
             currentRoomCode = generateRoomCode();
             roomCodeEl.textContent = currentRoomCode;
             createdRoomEl.classList.remove("hidden");
             document.getElementById("create-btn").disabled = true;
             
-            connectToRoom(currentRoomCode);
+            connectToRoom(currentRoomCode, isPrivate);
         }
 
         function cancelRoom() {
@@ -200,12 +224,13 @@
             }
             currentRoomCode = null;
             createdRoomEl.classList.add("hidden");
+            document.getElementById("room-options").classList.remove("hidden");
             document.getElementById("create-btn").disabled = false;
         }
 
-        function connectToRoom(roomCode) {
+        function connectToRoom(roomCode, isPrivate = false) {
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            const wsUrl = `${protocol}//${window.location.host}/ws/game/${roomCode}/`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/game/${roomCode}/?private=${isPrivate}`;
             
             socket = new WebSocket(wsUrl);
             
@@ -240,6 +265,13 @@
                 btn.textContent = "Copied!";
                 setTimeout(() => btn.textContent = "Copy Code", 2000);
             });
+        }
+
+        function joinWithCode() {
+            const code = document.getElementById("code-input").value.trim().toUpperCase();
+            if (code.length >= 4) {
+                joinRoom(code);
+            }
         }
 
         async function fetchRooms() {

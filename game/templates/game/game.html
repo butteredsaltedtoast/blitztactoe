@@ -238,6 +238,25 @@
           animation: buttonPulse 2s ease infinite;
         }
 
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            animation: confetti-fall 3s linear forwards;
+        }
+
     </style>
 </head>
 <body>
@@ -383,6 +402,29 @@
             showToast("Turn skipped (timeout)!");
         }
 
+        function launchConfetti()
+        {
+            const colors = ['#ff4444', '#ffaa00', '#00ff64', '#00aaff', '#f5a927'];
+            for(let i = 0; i < 50; i++)
+            {
+
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    document.body.appendChild(confetti);
+
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 4000);
+                }, i * 100);
+
+            }
+        }
+
         function handleGameOver(data) {
             gameOver = true;
             board = data.board;
@@ -406,6 +448,7 @@
 
                 setStatus("you win!!!!");
                 statusEl.className = "win";
+                launchConfetti();
 
               } else {
 

@@ -44,6 +44,11 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
         self.room_group_name = f"room_{self.room_id}"
 
+        from urllib.parse import parse_qs
+        query_string = self.scope.get('query_string', b"").decode()
+        params = parse_qs(query_string)
+        is_private = params.get('private', ['false'])[0] == 'true'
+
         if self.room_id not in GAMES:
             GAMES[self.room_id] = {
                 "players": [],
@@ -55,6 +60,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "game_started": False,
                 "channels": [],
                 "last_starter": "X",
+                "private" : is_private,
             }
 
         game = GAMES[self.room_id]
