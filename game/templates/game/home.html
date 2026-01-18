@@ -301,6 +301,17 @@
 
         fetchRooms();
         refreshInterval = setInterval(fetchRooms, 3000);
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                clearInterval(refreshInterval);
+            }
+            else {
+                fetchRooms();
+                refreshInterval = setInterval(fetchRooms, 3000);
+            }
+        });
+
     </script>
 </body>
 </html>
