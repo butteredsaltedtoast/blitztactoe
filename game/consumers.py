@@ -36,6 +36,7 @@ async def save_game_to_redis(room_id, game):
             "rematch_votes": list(game.get("rematch_votes", [])),
             "countdown_started": game.get("countdown_started"),
             "countdown_seconds": game.get("countdown_seconds", None),
+            "turn_time": game.get("turn_time", TURN_TIME),
         }
         client = get_redis_client()
         await client.set(f"game:{room_id}", json.dumps(to_store))
@@ -55,6 +56,7 @@ async def load_game_from_redis(room_id):
         stored.setdefault("turn_started", stored.get("turn_started"))
         stored.setdefault("countdown_started", stored.get("countdown_started"))
         stored.setdefault("countdown_seconds", stored.get("countdown_seconds", None))
+        stored.setdefault("turn_time", stored.get("turn_time", TURN_TIME))
         stored.setdefault("rematch_votes", stored.get("rematch_votes", []))
         return stored
     except Exception:
@@ -71,7 +73,12 @@ async def delete_game_from_redis(room_id):
 
 async def turn_timeout_task(room_id):
     try:
-        await asyncio.sleep(TURN_TIME)
+        # read the per-game turn_time if present
+        game = GAMES.get(room_id)
+        if not game:
+            return
+        sleep_time = game.get("turn_time", TURN_TIME)
+        await asyncio.sleep(sleep_time)
     except asyncio.CancelledError:
         return
 
@@ -94,7 +101,7 @@ async def turn_timeout_task(room_id):
         "board": game["board"],
         "turn": game["turn"],
         "turn_started": game["turn_started"],
-        "turn_time": TURN_TIME,
+        "turn_time": game.get("turn_time", TURN_TIME),
     }
 
     channel_layer = get_channel_layer()
@@ -138,7 +145,7 @@ async def countdown_task(room_id):
         "type": "game_start",
         "turn": game["turn"],
         "turn_started": game["turn_started"],
-        "turn_time": TURN_TIME,
+        "turn_time": game.get("turn_time", TURN_TIME),
     }
 
     channel_layer = get_channel_layer()
@@ -155,6 +162,17 @@ class GameConsumer(AsyncWebsocketConsumer):
         params = parse_qs(query_string)
         is_private = params.get('private', ['false'])[0] == 'true'
         room_name = params.get('name', [''])[0] or ''
+        # parse optional per-room turn time (in seconds)
+        turn_time_raw = params.get('turn_time', [None])[0]
+        turn_time = TURN_TIME
+        if turn_time_raw is not None:
+            try:
+                parsed = float(turn_time_raw)
+                # clamp between 0.5 and 5.0
+                parsed = max(0.5, min(5.0, parsed))
+                turn_time = parsed
+            except Exception:
+                turn_time = TURN_TIME
 
         
         if self.room_id not in GAMES:
@@ -174,6 +192,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "last_starter": "X",
                     "private" : is_private,
                     "name": room_name,
+                    "turn_time": turn_time,
                     "rematch_votes": [],
                 }
                 await save_game_to_redis(self.room_id, GAMES[self.room_id])
@@ -197,7 +216,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             "symbol": self.symbol,
             "board": game["board"],
             "turn": game["turn"],
-            "turn_time": TURN_TIME,
+            "turn_time": game.get("turn_time", TURN_TIME),
             "game_started": game["game_started"],
             "turn_started": game["turn_started"],
             "countdown_started": game.get("countdown_started"),
@@ -322,7 +341,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                         "board": game["board"],
                         "turn": game["turn"],
                         "turn_started": game.get("turn_started"),
-                        "turn_time": TURN_TIME,
+                        "turn_time": game.get("turn_time", TURN_TIME),
                         "countdown_started": game["countdown_started"],
                         "countdown_seconds": game["countdown_seconds"],
                     })
@@ -411,7 +430,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "board": game["board"],
                 "turn": game["turn"],
                 "turn_started": game.get("turn_started"),
-                "turn_time": TURN_TIME,
+                "turn_time": game.get("turn_time", TURN_TIME),
                 "countdown_started": game["countdown_started"],
                 "countdown_seconds": game["countdown_seconds"],
             })
@@ -433,7 +452,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "board": game["board"],
                 "turn": game["turn"],
                 "turn_started": game["turn_started"],
-                "turn_time": TURN_TIME,
+                "turn_time": game.get("turn_time", TURN_TIME),
             })
 
     async def _broadcast(self, message):

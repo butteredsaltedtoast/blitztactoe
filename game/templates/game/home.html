@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <title>BlitzTacToe</title>
-    <link rel="icon" href="/static/favicon.svg?v=2" type="image/svg+xml">
-    <link rel="shortcut icon" href="/static/favicon.svg?v=2">
-    <link rel="icon" href="/static/favicon.svg?v=2" type="image/svg+xml">
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB4Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZjk1MDAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmY0NDQ0Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iMTIiIGZpbGw9IiMwYTAwMTUiIC8+CiAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LDgpIj4KICAgIDxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjIwIiBmaWxsPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjk4IiAvPgogICAgPHRleHQgeD0iMjQiIHk9IjMwIiBmb250LWZhbWlseT0iQ291cmllciBOZXcsIG1vbm9zcGFjZSIgZm9udC1zaXplPSIyMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzBhMDAxNSIgZm9udC13ZWlnaHQ9IjcwMCI+WDwvdGV4dD4KICA8L2c+Cjwvc3ZnPgo=" type="image/svg+xml">
+    <link rel="shortcut icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB4Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZjk1MDAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmY0NDQ0Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiByeD0iMTIiIGZpbGw9IiMwYTAwMTUiIC8+CiAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LDgpIj4KICAgIDxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjIwIiBmaWxsPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjk4IiAvPgogICAgPHRleHQgeD0iMjQiIHk9IjMwIiBmb250LWZhbWlseT0iQ291cmllciBOZXcsIG1vbm9zcGFjZSIgZm9udC1zaXplPSIyMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzBhMDAxNSIgZm9udC13ZWlnaHQ9IjcwMCI+WDwvdGV4dD4KICA8L2c+Cjwvc3ZnPgo=" />
     <style>
         .hidden { display: none !important; }
         
@@ -358,6 +357,49 @@
         }
 
     </style>
+    <style>
+        /* Smooth, GPU-accelerated slider styling (no continuous animation) */
+        #turn-time-input {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: linear-gradient(90deg, rgba(69,182,254,0.12), rgba(255,68,68,0.06));
+            border-radius: 8px;
+            outline: none;
+            transition: box-shadow 140ms ease, background-position 200ms ease;
+            will-change: background-position;
+        }
+        #turn-time-input:hover { box-shadow: 0 6px 12px rgba(69,182,254,0.04); }
+
+        /* WebKit thumb */
+        #turn-time-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #ffffff, #e6f7ff);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 2px 8px rgba(69,182,254,0.12);
+            transition: transform 120ms ease, box-shadow 120ms ease;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+        #turn-time-input:active::-webkit-slider-thumb { transform: scale(0.96); box-shadow: 0 1px 6px rgba(69,182,254,0.12); }
+
+        /* Firefox thumb */
+        #turn-time-input::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(180deg, #ffffff, #e6f7ff);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 2px 8px rgba(69,182,254,0.12);
+            transition: transform 120ms ease, box-shadow 120ms ease;
+            transform: translateZ(0);
+            will-change: transform;
+        }
+        #turn-time-input:active::-moz-range-thumb { transform: scale(0.96); box-shadow: 0 1px 6px rgba(69,182,254,0.12); }
+    </style>
 </head>
 <body>
     <div class="bg-symbols" id="bg-symbols"></div>
@@ -376,6 +418,12 @@
                 <input type="text" id="room-name-input" class="themed-input" placeholder="room name (optional)" maxlength="20">
             </div>
 
+            <div style="margin-top: 12px; display:flex; gap:10px; align-items:center;">
+                <label for="turn-time-input" style="color:#9aa8b3; font-size:0.95rem; min-width:120px;">turn time (s)</label>
+                <input type="range" id="turn-time-input" min="0.5" max="5" step="0.25" value="5">
+                <div id="turn-time-display" style="min-width:36px; text-align:right; color:#eaf6ff;">5</div>
+            </div>
+
             <div style="margin-top: 20px;">
                 <button id="room-toggle" class="room-toggle" data-mode="public">public</button>
             </div>
@@ -384,6 +432,7 @@
                 <p id="room-name-display" style="margin: 0 0 10px 0; font-size: 1.1rem; font-weight: 500;"></p>
                 <p id="code-label">your room code:</p>
                 <div class="code" id="room-code"></div>
+                <div style="margin-top:8px; color:#9aa8b3; font-size:0.95rem;">turn time: <span id="created-turn-time">5</span>s</div>
                 <p id="waiting-text">waiting for opponent...</p>
                 <button id="cancel-btn">cancel</button>
             </div>
@@ -454,6 +503,14 @@
             toggle.classList.toggle('private');
         });
 
+        const turnTimeInput = document.getElementById('turn-time-input');
+        const turnTimeDisplay = document.getElementById('turn-time-display');
+        if (turnTimeInput && turnTimeDisplay) {
+            turnTimeInput.addEventListener('input', () => {
+                turnTimeDisplay.textContent = turnTimeInput.value;
+            });
+        }
+
         function generateRoomCode() {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             let code = "";
@@ -467,9 +524,11 @@
 
             const isPrivate = document.getElementById('room-toggle').dataset.mode === 'private';
             const roomName = document.getElementById('room-name-input').value;
+            const turnTime = parseFloat(document.getElementById('turn-time-input').value) || 5;
 
             currentRoomCode = generateRoomCode();
             roomCodeEl.textContent = currentRoomCode;
+            document.getElementById('created-turn-time').textContent = String(turnTime);
             
             const nameDisplay = document.getElementById('room-name-display');
             if (roomName) {
@@ -496,7 +555,7 @@
             document.getElementById("code-input").disabled = true;
             fetchRooms();
             
-            connectToRoom(currentRoomCode, isPrivate, roomName);
+            connectToRoom(currentRoomCode, isPrivate, roomName, turnTime);
         }
 
         function cancelRoom() {
@@ -516,9 +575,9 @@
 
         }
 
-        function connectToRoom(roomCode, isPrivate = false, roomName = '') {
+        function connectToRoom(roomCode, isPrivate = false, roomName = '', turnTime = 5) {
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            const wsUrl = `${protocol}//${window.location.host}/ws/game/${roomCode}/?private=${isPrivate}&name=${encodeURIComponent(roomName)}`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/game/${roomCode}/?private=${isPrivate}&name=${encodeURIComponent(roomName)}&turn_time=${encodeURIComponent(turnTime)}`;
             
             socket = new WebSocket(wsUrl);
             
@@ -599,11 +658,13 @@
                 } else {
                     displayText = room.name ? `${room.name}` : room.code;
                 }
-                
                 return `
                 <li class="room-item">
-                    <span class="room-name">${displayText}</span>
-                    <span>${room.players}/2 players</span>
+                    <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                      <span class="room-name">${displayText}</span>
+                      <small style="color:#9aa8b3;">turn: ${room.turn_time}s</small>
+                    </div>
+                    <span>${room.players}/2</span>
                     <button onclick="joinRoom('${room.code}')" ${disableJoin || room.private ? 'disabled' : ''}>Join</button>
                 </li>
             `}).join("");

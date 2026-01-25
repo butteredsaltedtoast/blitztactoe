@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from game.consumers import GAMES
+from game.consumers import GAMES, TURN_TIME
 
 VIEW_COUNT = 0
 
@@ -27,5 +27,6 @@ def list_rooms(request):
                 "players": len(game["players"]),
                 "private": game.get("private", False),
                 "name": game.get("name", ""),
+                "turn_time": game.get("turn_time", TURN_TIME),
             })
     return JsonResponse(rooms, safe=False)

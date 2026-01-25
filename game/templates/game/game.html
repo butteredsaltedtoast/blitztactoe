@@ -676,7 +676,7 @@
             renderBoard();
             updateTurnDisplay();
             startCountdown(data.turn_started, data.turn_time);
-            showToast("Turn skipped (timeout)!");
+            showToast("turn skipped (timeout)!");
         }
 
         function launchConfetti()
@@ -779,7 +779,7 @@
             updateTurnDisplay();
             startCountdown(data.turn_started, data.turn_time);
             gameOverActions.classList.add("hidden");
-            showToast("New game started!");
+            showToast("new game started!");
         }
 
         function handleRematchRequested(data) {
@@ -791,7 +791,7 @@
         function handlePlayerLeft(data) {
             gameStarted = false;
             stopCountdown();
-            setStatus(`Player ${data.symbol} left. Waiting for new opponent...`);
+            setStatus(`Player ${data.symbol} left. waiting for new opponent...`);
             timerEl.textContent = "--";
         }
 
@@ -806,8 +806,8 @@
         function requestRematch() {
             socket.send(JSON.stringify({ action: "rematch" }));
             rematchBtn.disabled = true;
-            rematchBtn.textContent = "Waiting...";
-            showToast("Rematch requested!");
+            rematchBtn.textContent = "waiting...";
+            showToast("rematch requested!");
         }
 
         function startCountdown(serverTurnStarted, serverTurnTime) {
@@ -818,23 +818,27 @@
                 return;
             }
 
-            const startedAt = Date.now();
+            const startedAt = (serverTurnStarted * 1000) || Date.now();
 
             turnTime = serverTurnTime;
 
             function updateTimer() {
                 const elapsed = (Date.now() - startedAt) / 1000;
-                const remaining = Math.max(0, Math.ceil(turnTime - elapsed));
-                timerEl.textContent = remaining;
-                timerEl.dataset.remaining = remaining;
+                const remainingPrecise = Math.max(0, turnTime - elapsed);
 
-                if (remaining <= 0) {
+                const display = remainingPrecise.toFixed(2);
+
+                timerEl.textContent = display;
+                timerEl.dataset.remaining = Math.ceil(remainingPrecise);
+
+                if (remainingPrecise <= 0) {
                     stopCountdown();
                 }
             }
 
             updateTimer();
-            countdownInterval = setInterval(updateTimer, 100);
+            // always update frequently for precise two-decimal display
+            countdownInterval = setInterval(updateTimer, 20);
         }
 
         function stopCountdown() {
