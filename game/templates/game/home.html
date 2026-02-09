@@ -39,8 +39,7 @@
             pointer-events: none;
             overflow: hidden;
             z-index: 0;
-            /* keep a low baseline visible so backdrop blur isn't applied suddenly */
-            opacity: 0.22;
+            opacity: 0;
         }
 
         .bg-row {
@@ -90,7 +89,6 @@
             transform: translateY(calc(50vh - 100px));
         }
 
-        /* Ensure UI stays visually above the animated bg */
         .title,
         .sections {
             position: relative;
@@ -348,7 +346,7 @@
         }
 
         @keyframes bg-fade {
-            from { opacity: 0.22; }
+            from { opacity: 0; }
             to { opacity: 0.42; }
         }
 
@@ -358,7 +356,6 @@
 
     </style>
     <style>
-        /* Smooth, GPU-accelerated slider styling (no continuous animation) */
         #turn-time-input {
             -webkit-appearance: none;
             appearance: none;
@@ -371,7 +368,6 @@
         }
         #turn-time-input:hover { box-shadow: 0 6px 12px rgba(69,182,254,0.04); }
 
-        /* WebKit thumb */
         #turn-time-input::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 18px;
@@ -386,7 +382,6 @@
         }
         #turn-time-input:active::-webkit-slider-thumb { transform: scale(0.96); box-shadow: 0 1px 6px rgba(69,182,254,0.12); }
 
-        /* Firefox thumb */
         #turn-time-input::-moz-range-thumb {
             width: 18px;
             height: 18px;

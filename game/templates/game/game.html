@@ -19,6 +19,35 @@
             background-attachment: fixed;
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+            25% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
+            50% { transform: translateY(-40px) translateX(-10px); opacity: 0.4; }
+            75% { transform: translateY(-20px) translateX(15px); opacity: 0.5; }
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, rgba(255,149,0,0.8), transparent);
+            border-radius: 50%;
+            animation: float 15s infinite ease-in-out;
+            filter: blur(1px);
         }
         
         .container { 
@@ -31,6 +60,8 @@
             max-width: 480px;
             width: 100%;
             box-sizing: border-box;
+            position: relative;
+            z-index: 10;
         }
 
         .container h1 {
@@ -108,6 +139,40 @@
             justify-content: center;
             background: rgba(17, 17, 17, 0.7);
             transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .cell.ripple::before {
+            width: 200px;
+            height: 200px;
+        }
+        
+        .cell-preview {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .cell.recent-move {
+            animation: recentGlow 1.5s ease-out;
+        }
+        
+        @keyframes recentGlow {
+            0% { box-shadow: 0 0 20px rgba(255,200,0,0.8); }
+            100% { box-shadow: none; }
         }
         
         .cell[data-symbol="x"]{
@@ -122,10 +187,16 @@
             animation: pop 0.2s ease;
         }
 
-        .cell:hover {
+        .cell:hover:not([data-symbol="x"]):not([data-symbol="o"]) {
             background: #222;
             border-color: #555;
             transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255,149,0,0.2);
+        }
+        
+        .cell.my-turn:hover:not([data-symbol="x"]):not([data-symbol="o"]) {
+            background: linear-gradient(135deg, rgba(255,149,0,0.1), rgba(255,68,68,0.05));
+            border-color: #ff9500;
         }
 
         .cell:active {
@@ -139,6 +210,18 @@
             border: 1px solid #333;
             background: rgba(10, 10, 10, 0.8);
             border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .info > div.active-turn {
+            border-color: #ff9500;
+            background: linear-gradient(135deg, rgba(255,149,0,0.15), rgba(255,68,68,0.1));
+            animation: turnPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes turnPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255,149,0,0.3); }
+            50% { box-shadow: 0 0 25px rgba(255,149,0,0.6); }
         }
 
         @keyframes urgentPulse {
@@ -425,6 +508,7 @@
     </style>
 </head>
 <body>
+    <canvas id="particles"></canvas>
     <div class="container">
         <h1>BlitzTacToe</h1>
         <div id="countdown-overlay" class="hidden">
@@ -462,6 +546,48 @@
         let countdownInterval = null;
         let matchCountdownInterval = null;
         let matchVisibilityHandler = null;
+        let lastMoveIndex = null;
+        
+        // Sound effects
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(frequency, duration, type = 'sine', volume = 0.1) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            gainNode.gain.value = volume;
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        function playMoveSound() {
+            playSound(800, 0.1, 'square', 0.05);
+        }
+        
+        function playWinSound() {
+            playSound(523, 0.15, 'sine', 0.08);
+            setTimeout(() => playSound(659, 0.15, 'sine', 0.08), 150);
+            setTimeout(() => playSound(784, 0.3, 'sine', 0.08), 300);
+        }
+        
+        function playLoseSound() {
+            playSound(400, 0.2, 'sawtooth', 0.06);
+            setTimeout(() => playSound(300, 0.3, 'sawtooth', 0.06), 200);
+        }
+        
+        function playTickSound() {
+            playSound(1200, 0.05, 'square', 0.03);
+        }
+        
+        function playDrawSound() {
+            playSound(440, 0.2, 'triangle', 0.05);
+        }
 
         const statusEl = document.getElementById("status");
         const timerEl = document.getElementById("timer");
@@ -475,6 +601,7 @@
 
         function init() {
             createBoard();
+            initParticles();
             connectWebSocket();
             rematchBtn.addEventListener("click", requestRematch);
             backBtn.addEventListener("click", () => {
@@ -482,6 +609,59 @@
                     socket.close();
                 }
                 window.location.href = "/";
+            });
+        }
+        
+        // Animated background particles
+        function initParticles() {
+            const canvas = document.getElementById('particles');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const particles = [];
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 2 + 1,
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+            }
+            
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    
+                    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 3);
+                    gradient.addColorStop(0, `rgba(255, 149, 0, ${p.opacity})`);
+                    gradient.addColorStop(0.5, `rgba(255, 68, 68, ${p.opacity * 0.5})`);
+                    gradient.addColorStop(1, 'rgba(255, 149, 0, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+            
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
             });
         }
 
@@ -492,9 +672,64 @@
                 cell.className = "cell";
                 cell.dataset.index = i;
                 cell.addEventListener("click", () => handleCellClick(i));
+                
+                // Hover preview
+                cell.addEventListener("mouseenter", () => {
+                    if (!gameStarted || gameOver || currentTurn !== mySymbol || board[i] !== "") return;
+                    cell.textContent = mySymbol;
+                    cell.classList.add('cell-preview');
+                    createHoverParticles(cell);
+                });
+                
+                cell.addEventListener("mouseleave", () => {
+                    if (board[i] === "") {
+                        cell.textContent = "";
+                        cell.classList.remove('cell-preview');
+                    }
+                });
+                
                 boardEl.appendChild(cell);
             }
         }
+        
+        function createHoverParticles(cell) {
+            const rect = cell.getBoundingClientRect();
+            const colors = ['#ff9500', '#ff4444', '#45b6fe'];
+            
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.style.position = 'fixed';
+                    particle.style.left = rect.left + rect.width / 2 + 'px';
+                    particle.style.top = rect.top + rect.height / 2 + 'px';
+                    particle.style.width = '4px';
+                    particle.style.height = '4px';
+                    particle.style.borderRadius = '50%';
+                    particle.style.backgroundColor = colors[i % colors.length];
+                    particle.style.pointerEvents = 'none';
+                    particle.style.zIndex = '1000';
+                    
+                    const angle = (Math.random() * Math.PI * 2);
+                    const distance = 30 + Math.random() * 20;
+                    const tx = Math.cos(angle) * distance;
+                    const ty = Math.sin(angle) * distance;
+                    
+                    particle.style.transition = 'all 0.6s ease-out';
+                    document.body.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.style.transform = `translate(${tx}px, ${ty}px)`;
+                        particle.style.opacity = '0';
+                    }, 10);
+                    
+                    setTimeout(() => particle.remove(), 600);
+                }, i * 50);
+            }
+        }
+
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectBaseDelay = 2000;
 
         function connectWebSocket() {
             const roomId = window.location.pathname.split("/").filter(Boolean).pop();
@@ -505,6 +740,7 @@
 
             socket.onopen = () => {
                 setStatus("Connected. Waiting for opponent...");
+                reconnectAttempts = 0;
             };
 
             socket.onmessage = (event) => {
@@ -512,18 +748,35 @@
                 handleServerMessage(data);
             };
 
-            socket.onclose = () => {
-                setStatus("Disconnected. Refresh to reconnect.");
+            socket.onclose = (event) => {
                 stopCountdown();
+                stopMatchCountdown();
+                
+                if (event.code === 1000 || event.wasClean) {
+                    setStatus("Disconnected.");
+                    return;
+                }
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    const delay = reconnectBaseDelay * Math.pow(1.5, reconnectAttempts - 1);
+                    setStatus(`Connection lost. Reconnecting in ${Math.ceil(delay/1000)}s... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                    setTimeout(connectWebSocket, delay);
+                } else {
+                    setStatus("Connection lost. Please refresh the page.");
+                }
             };
 
-            socket.onerror = () => {
-                setStatus("Connection error.");
+            socket.onerror = (error) => {
+                console.error("WebSocket error:", error);
             };
         }
 
         function handleServerMessage(data) {
             switch (data.type) {
+                case "error":
+                    showToast("❌ " + (data.message || "An error occurred"));
+                    break;
                 case "countdown_start": handleCountdownStart(data); break;
                 case "init": handleInit(data); break;
                 case "game_start": handleGameStart(data); break;
@@ -533,6 +786,8 @@
                 case "game_reset": handleGameReset(data); break;
                 case "rematch_requested": handleRematchRequested(data); break;
                 case "player_left": handlePlayerLeft(data); break;
+                default:
+                    console.warn("Unknown message type:", data.type);
             }
         }
 
@@ -544,6 +799,12 @@
             gameStarted = data.game_started;
             yourSymbolEl.textContent = mySymbol;
             renderBoard();
+
+            console.log("init", {
+                turn_time: data.turn_time,
+                turn_started: data.turn_started,
+                client_now: Date.now() / 1000
+            });
 
             if (data.countdown_started) {
                 handleCountdownStart({countdown_started: data.countdown_started, countdown_seconds: data.countdown_seconds || 3});
@@ -561,6 +822,13 @@
             gameOver = false;
             currentTurn = data.turn;
             turnTime = data.turn_time;
+
+            console.log("game_start", {
+                turn_time: data.turn_time,
+                turn_started: data.turn_started,
+                client_now: Date.now() / 1000
+            });
+
             updateTurnDisplay();
 
             stopMatchCountdown();
@@ -659,6 +927,15 @@
         }
 
         function handleTurnChange(data) {
+            // Find the move that was just made
+            for (let i = 0; i < 9; i++) {
+                if (board[i] !== data.board[i]) {
+                    lastMoveIndex = i;
+                    playMoveSound();
+                    break;
+                }
+            }
+            
             board = data.board;
             currentTurn = data.turn;
             renderBoard();
@@ -713,6 +990,7 @@
                 setStatus("it's a draw! again!!!");
                 statusEl.className = "draw";
                 boardEl.classList.add('slide-off');
+                playDrawSound();
                 return;
 
               } else if (data.winner === mySymbol) {
@@ -722,12 +1000,14 @@
                     statusEl.textContent += " (opponent disconnected)";
                 statusEl.className = "win";
                 launchConfetti();
+                playWinSound();
 
               } else {
 
                 setStatus("you lose....");
                 statusEl.className = "lose";
                 document.querySelector('.container').classList.add('shake');
+                playLoseSound();
 
               }
 
@@ -800,6 +1080,12 @@
             if (gameOver) return;
             if (currentTurn !== mySymbol) return;
             if (board[index] !== "") return;
+            
+            const cell = boardEl.querySelectorAll('.cell')[index];
+            cell.classList.add('ripple');
+            setTimeout(() => cell.classList.remove('ripple'), 600);
+            
+            playMoveSound();
             socket.send(JSON.stringify({ index: index }));
         }
 
@@ -812,6 +1098,13 @@
 
         function startCountdown(serverTurnStarted, serverTurnTime) {
             stopCountdown();
+
+            console.log("startCountdown called", {
+                serverTurnStarted,
+                serverTurnTime,
+                turnTime_var: turnTime,
+                client_now: Date.now() / 1000
+            });
 
             if (!serverTurnStarted || !serverTurnTime) {
                 timerEl.textContent = "--";
@@ -829,7 +1122,14 @@
                 const display = remainingPrecise.toFixed(2);
 
                 timerEl.textContent = display;
-                timerEl.dataset.remaining = Math.ceil(remainingPrecise);
+                const prevRemaining = timerEl.dataset.remaining;
+                const newRemaining = Math.ceil(remainingPrecise);
+                timerEl.dataset.remaining = newRemaining;
+                
+                // Play tick sound on seconds 3, 2, 1
+                if (newRemaining <= 3 && newRemaining !== prevRemaining && newRemaining > 0) {
+                    playTickSound();
+                }
 
                 if (remainingPrecise <= 0) {
                     stopCountdown();
@@ -837,7 +1137,6 @@
             }
 
             updateTimer();
-            // always update frequently for precise two-decimal display
             countdownInterval = setInterval(updateTimer, 20);
         }
 
@@ -853,15 +1152,34 @@
             cells.forEach((cell, i) => {
                 cell.textContent = board[i];
                 cell.dataset.symbol = board[i].toLowerCase();
+                cell.classList.remove('cell-preview', 'recent-move');
+                
+                // Highlight recent move
+                if (i === lastMoveIndex && board[i] !== "") {
+                    cell.classList.add('recent-move');
+                }
+                
+                // Add my-turn class for hover effects
+                if (currentTurn === mySymbol && !gameOver && board[i] === "") {
+                    cell.classList.add('my-turn');
+                } else {
+                    cell.classList.remove('my-turn');
+                }
             });
         }
 
         function updateTurnDisplay() {
             currentTurnEl.textContent = currentTurn;
+            
+            const infoBoxes = document.querySelectorAll('.info > div');
+            infoBoxes.forEach(box => box.classList.remove('active-turn'));
+            
             if (currentTurn === mySymbol) {
                 setStatus("Your turn!");
+                infoBoxes[0]?.classList.add('active-turn');
             } else {
                 setStatus("Opponent's turn...");
+                infoBoxes[1]?.classList.add('active-turn');
             }
         }
 
