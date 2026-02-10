@@ -808,6 +808,7 @@
 
             if(data.ready_states.X) {
                 document.getElementById("x-ready").classList.add("active");
+                document.getElementById("x-symbol").classList.add("ready");
                 setTimeout(() => {
                     document.getElementById("x-ready").classList.remove("active");
                 }, 400);
@@ -815,6 +816,7 @@
 
             if(data.ready_states.O) {
                 document.getElementById("o-ready").classList.add("active");
+                document.getElementById("o-symbol").classList.add("ready");
                 setTimeout(() => {
                     document.getElementById("o-ready").classList.remove("active");
                 }, 400);
