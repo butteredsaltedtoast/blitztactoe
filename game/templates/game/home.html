@@ -581,6 +581,9 @@
                 if (data.type === "init" && data.game_started) {
                     goToGame(roomCode);
                 }
+                if(data.type === "opponent_joined") {
+                    goToGame(roomCode);
+                }
                 if (data.type === "game_start") {
                     goToGame(roomCode);
                 }
