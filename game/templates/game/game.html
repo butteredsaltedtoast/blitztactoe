@@ -19,6 +19,18 @@
             background-attachment: fixed;
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
         }
         
         .container { 
@@ -31,6 +43,8 @@
             max-width: 480px;
             width: 100%;
             box-sizing: border-box;
+            position: relative;
+            z-index: 10;
         }
 
         .container h1 {
@@ -425,6 +439,7 @@
     </style>
 </head>
 <body>
+    <canvas id="particles"></canvas>
     <div class="container">
         <h1>BlitzTacToe</h1>
         <div id="countdown-overlay" class="hidden">
@@ -473,8 +488,73 @@
         const backBtn = document.getElementById("back-btn");
         const toastEl = document.getElementById("toast");
 
+        function initParticles() {
+            const canvas = document.getElementById('particles');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            resize();
+
+            const colors = [
+                {r: 255, g: 68, b: 68},
+                {r: 69, g: 182, b: 254},
+                {r: 255, g: 149, b: 0}
+            ];
+
+            const particles = [];
+            const particleCount = 50;
+
+            for(let i = 0; i < particleCount; i++)
+            {
+
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 2 + 1,
+                    opacity: Math.random() * 0.5 + 0.2,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
+
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 3);
+                    gradient.addColorStop(0, `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.opacity})`);
+                    gradient.addColorStop(0.5, `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.opacity * 0.5})`);
+                    gradient.addColorStop(1, `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, 0)`);
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                });
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+            window.addEventListener('resize', resize);
+
+        }
+
         function init() {
             createBoard();
+            initParticles();
             connectWebSocket();
             rematchBtn.addEventListener("click", requestRematch);
             backBtn.addEventListener("click", () => {

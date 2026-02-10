@@ -285,14 +285,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 await save_game_to_redis(self.room_id, game)
                 logger.info(f"Player {self.symbol} joined room {self.room_id}")
                 
-                should_start_countdown = (len(game["players"]) == 2 and not game["game_started"])
+                should_start_countdown = (len(game["players"]) == 2 and not game["game_started"] and not game.get("countdown_started"))
                 if should_start_countdown:
-                    if game.get("countdown_task"):
-                        try:
-                            game["countdown_task"].cancel()
-                        except Exception:
-                            pass
-
                     game["countdown_started"] = time.time()
                     game["countdown_seconds"] = COUNTDOWN_SECONDS
                     game["countdown_task"] = asyncio.create_task(countdown_task(self.room_id))
@@ -309,8 +303,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "turn_time": game.get("turn_time", TURN_TIME),
                 "game_started": game["game_started"],
                 "turn_started": game["turn_started"],
-                "countdown_started": game.get("countdown_started"),
-                "countdown_seconds": game.get("countdown_seconds"),
+                "countdown_started": game.get("countdown_started") if not should_start_countdown else None,
+                "countdown_seconds": game.get("countdown_seconds") if not should_start_countdown else None,
             }))
 
             if should_start_countdown:
