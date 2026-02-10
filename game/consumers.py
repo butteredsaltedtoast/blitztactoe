@@ -63,6 +63,7 @@ async def save_game_to_redis(room_id, game):
             "countdown_started": game.get("countdown_started"),
             "countdown_seconds": game.get("countdown_seconds", None),
             "turn_time": game.get("turn_time", TURN_TIME),
+            "ready_states": game.get("ready_states", {"X": False, "O": False}),
         }
         client = get_redis_client()
         if client:
@@ -89,6 +90,7 @@ async def load_game_from_redis(room_id):
         stored.setdefault("countdown_seconds", stored.get("countdown_seconds", None))
         stored.setdefault("turn_time", stored.get("turn_time", TURN_TIME))
         stored.setdefault("rematch_votes", stored.get("rematch_votes", []))
+        stored.setdefault("ready_states", {"X": False, "O": False})
         return stored
     except json.JSONDecodeError as e:
         logger.error(f"Failed to deserialize game state for {room_id}: {e}")
@@ -177,6 +179,7 @@ async def countdown_task(room_id):
         game["countdown_started"] = None
         game["countdown_seconds"] = None
         game["countdown_task"] = None
+        game["ready_states"] = {"X": False, "O": False}
 
         game["turn_started"] = time.time()
         game["timer_task"] = asyncio.create_task(turn_timeout_task(room_id))
@@ -265,6 +268,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                             "turn_time": turn_time,
                             "rematch_votes": [],
                             "created_at": time.time(),
+                            "ready_states": {"X": False, "O": False},
                         }
                         logger.info(f"Created new game {self.room_id}")
                         await save_game_to_redis(self.room_id, GAMES[self.room_id])
@@ -284,13 +288,6 @@ class GameConsumer(AsyncWebsocketConsumer):
                 
                 await save_game_to_redis(self.room_id, game)
                 logger.info(f"Player {self.symbol} joined room {self.room_id}")
-                
-                should_start_countdown = (len(game["players"]) == 2 and not game["game_started"] and not game.get("countdown_started"))
-                if should_start_countdown:
-                    game["countdown_started"] = time.time()
-                    game["countdown_seconds"] = COUNTDOWN_SECONDS
-                    game["countdown_task"] = asyncio.create_task(countdown_task(self.room_id))
-                    await save_game_to_redis(self.room_id, game)
 
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
             await self.accept()
@@ -303,17 +300,11 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "turn_time": game.get("turn_time", TURN_TIME),
                 "game_started": game["game_started"],
                 "turn_started": game["turn_started"],
-                "countdown_started": game.get("countdown_started") if not should_start_countdown else None,
-                "countdown_seconds": game.get("countdown_seconds") if not should_start_countdown else None,
+                "countdown_started": game.get("countdown_started"),
+                "countdown_seconds": game.get("countdown_seconds"),
+                "ready_states": game.get("ready_states"),
             }))
 
-            if should_start_countdown:
-                await self._broadcast({
-                    "type": "countdown_start",
-                    "countdown_started": game["countdown_started"],
-                    "countdown_seconds": game["countdown_seconds"],
-                })
-                logger.info(f"Started countdown for room {self.room_id}")
         except Exception as e:
             logger.error(f"Error in connect for room {self.room_id}: {e}", exc_info=True)
             await self.close()
@@ -365,6 +356,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                                 game["countdown_task"] = None
                             game["countdown_started"] = None
                             game["countdown_seconds"] = None
+                            game["ready_states"] = {"X": False, "O": False}
 
                         if was_game_active and len(game["players"]) == 1:
                             remaining = game["players"][0]
@@ -428,6 +420,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             game = GAMES.get(self.room_id)
             if not game:
                 logger.warning(f"Game not found for room {self.room_id}")
+                return
+            
+            if(data.get("type") == "player_ready"):
+                await self.handle_player_ready()
                 return
 
             if data.get("action") == "rematch":
@@ -665,6 +661,33 @@ class GameConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.warning(f"Failed to save game state in _start_new_turn for {self.room_id}: {e}")
 
+    async def handle_player_ready(self):
+        async with GAME_LOCKS[self.room_id]:
+            game = GAMES.get(self.room_id)
+            if not game:
+                return
+            
+            game["ready_states"][self.symbol] = True
+            await save_game_to_redis(self.room_id, game)
+            
+            await self._broadcast({
+                "type": "player_ready",
+                "ready_states": game["ready_states"],
+            })
+            
+            if all(game["ready_states"].values()) and not game.get("countdown_started"):
+                game["countdown_started"] = time.time()
+                game["countdown_seconds"] = COUNTDOWN_SECONDS
+                game["countdown_task"] = asyncio.create_task(countdown_task(self.room_id))
+                await save_game_to_redis(self.room_id, game)
+                
+                await self._broadcast({
+                    "type": "countdown_start",
+                    "countdown_started": game["countdown_started"],
+                    "countdown_seconds": game["countdown_seconds"],
+                })
+                logger.info(f"Both players ready, starting countdown in room {self.room_id}")
+
     def check_winner(self, board):
         wins = [
             (0, 1, 2), (3, 4, 5), (6, 7, 8),
@@ -698,6 +721,9 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def countdown_start(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    async def player_ready(self, event):
         await self.send(text_data=json.dumps(event))
 
 

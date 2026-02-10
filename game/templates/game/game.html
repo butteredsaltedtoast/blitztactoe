@@ -124,7 +124,7 @@
             transition: all 0.2s;
         }
         
-        .cell[data-symbol="x"]{
+        .cell[data-symbol="x"] {
             color: #ff4444;
             text-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
             animation: pop 0.2s ease;
@@ -144,6 +144,112 @@
 
         .cell:active {
             transform: scale(0.95);
+        }
+
+        #ready-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #ready-status {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+
+        .ready-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #x-symbol, #o-symbol {
+            background: rgba(255, 255, 255, 0.1);
+            color: #666;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .player-symbol {
+            font-size: 24px;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        #x-symbol.ready {
+            animation: readyPulse 0.6s ease;
+            background: linear-gradient(90deg, #ff4444, #ff6b6b) !important;
+            color: #0a0015 !important;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+            border-color: #ff4444;
+        }
+
+        #o-symbol.ready {
+            animation: readyPulse 0.6s ease;
+            background: linear-gradient(90deg, #45b6fe, #6ec1ff) !important;
+            color: #0a0015 !important;
+            box-shadow: 0 0 20px rgba(69, 182, 254, 0.8);
+            border-color: #45b6fe;
+        }
+
+        #x-ready.active {
+            color: #ff4444 !important;
+            text-shadow: 0 0 10px rgba(255, 68, 68, 0.8);
+        }
+
+        #o-ready.active {
+            color: #45b6fe !important;
+            text-shadow: 0 0 10px rgba(69, 182, 254, 0.8);
+        }
+
+        @keyframes readyPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .ready-indicator {
+            font-size: 20px;
+            transition: all 0.3 ease;
+        }
+
+        .ready-indicator.active {
+            animation: indicatorPop 0.4 ease;
+        }
+
+        @keyframes indicatorPop {
+            0% { transform: scale(0.8) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        #ready-btn {
+            padding: 12px 32px;
+            font-size: 16px;
+            background: linear-gradient(90deg, #ff9500, #ff4444);
+            color: #0a0015;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3 ease;
+        }
+
+        #ready-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 148, 0, 0.8);
+        }
+        
+        #ready-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         .info { display: flex; justify-content: center; gap: 20px; margin: 10px 0; }
@@ -458,6 +564,19 @@
             </div>
         </div>
         <div class="board" id="board"></div>
+        <div id="ready-section" class="hidden">
+            <div id="ready-status">
+                <div class = "ready-item">
+                    <span id="x-symbol" class = "player-symbol">X</span>
+                    <span id="x-ready" class="ready-indicator">...</span>
+                </div>
+                <div class = "ready-item">
+                    <span id="o-symbol" class = "player-symbol">O</span>
+                    <span id="o-ready" class="ready-indicator">...</span>
+                </div>
+            </div>
+            <button id="ready-btn">Ready</button>
+        </div>
         <div id="game-over-actions" class="hidden">
             <button id="rematch-btn">Rematch</button>
         </div>
@@ -557,6 +676,13 @@
             initParticles();
             connectWebSocket();
             rematchBtn.addEventListener("click", requestRematch);
+            document.getElementById("ready-btn").addEventListener("click", () => {
+                socket.send(JSON.stringify({type: "player_ready"}));
+                document.getElementById("ready-btn").disabled = true;
+
+                const mySymbolElement = document.getElementById(mySymbol.toLowerCase() + "-symbol");
+                mySymbolElement.classList.add("ready");
+            })
             backBtn.addEventListener("click", () => {
                 if(socket) {
                     socket.close();
@@ -635,6 +761,7 @@
                 case "game_reset": handleGameReset(data); break;
                 case "rematch_requested": handleRematchRequested(data); break;
                 case "player_left": handlePlayerLeft(data); break;
+                case "player_ready": handlePlayerReady(data); break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -655,7 +782,10 @@
                 client_now: Date.now() / 1000
             });
 
-            if (data.countdown_started) {
+            if(!gameStarted && data.ready_states && !data.countdown_started) {
+                document.getElementById("ready-section").classList.remove("hidden");
+                setStatus("Waiting for players to be ready...");
+            } else if (data.countdown_started) {
                 handleCountdownStart({countdown_started: data.countdown_started, countdown_seconds: data.countdown_seconds || 3});
                 setStatus("Get ready...");
             } else if (gameStarted && data.turn_started) {
@@ -663,6 +793,25 @@
                 updateTurnDisplay();
             } else {
                 setStatus("Waiting for opponent...");
+            }
+        }
+
+        function handlePlayerReady(data) {
+            document.getElementById("x-ready").textContent = data.ready_states.X ? "Ready" : "...";
+            document.getElementById("o-ready").textContent = data.ready_states.O ? "Ready" : "...";
+
+            if(data.ready_states.X) {
+                document.getElementById("x-ready").classList.add("active");
+                setTimeout(() => {
+                    document.getElementById("x-ready").classList.remove("active");
+                }, 400);
+            }
+
+            if(data.ready_states.O) {
+                document.getElementById("o-ready").classList.add("active");
+                setTimeout(() => {
+                    document.getElementById("o-ready").classList.remove("active");
+                }, 400);
             }
         }
 
