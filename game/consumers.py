@@ -704,6 +704,9 @@ class GameConsumer(AsyncWebsocketConsumer):
             if board[a] and board[a] == board[b] == board[c]:
                 return board[a]
         return None
+    
+    async def opponent_joined(self, event):
+        await self.send(text_data=json.dumps(event))
 
     async def game_start(self, event):
         await self.send(text_data=json.dumps(event))
