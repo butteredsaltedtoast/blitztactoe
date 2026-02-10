@@ -305,6 +305,12 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "ready_states": game.get("ready_states"),
             }))
 
+            if len(game["players"]) == 2:
+                await self._broadcast({
+                    "type": "opponent_joined",
+                    "players": game["players"],
+                })
+
         except Exception as e:
             logger.error(f"Error in connect for room {self.room_id}: {e}", exc_info=True)
             await self.close()

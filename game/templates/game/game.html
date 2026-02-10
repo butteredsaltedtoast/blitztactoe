@@ -752,6 +752,7 @@
                 case "error":
                     showToast("❌ " + (data.message || "An error occurred"));
                     break;
+                case "opponent_joined": handleOpponentJoined(data); break;
                 case "countdown_start": handleCountdownStart(data); break;
                 case "init": handleInit(data); break;
                 case "game_start": handleGameStart(data); break;
@@ -794,6 +795,11 @@
             } else {
                 setStatus("Waiting for opponent...");
             }
+        }
+
+        function handleOpponentJoined(data) {
+            setStatus("Opponent joined. Waiting for both players to be ready...");
+            document.getElementById("ready-section").classList.remove("hidden");
         }
 
         function handlePlayerReady(data) {
